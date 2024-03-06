@@ -63,11 +63,22 @@
         modules = [./hosts/huawei/configuration.nix];
         specialArgs = {inherit inputs outputs;};
       };
+
+      msi = lib.nixosSystem {
+        modules = [./hosts/msi/configuration.nix];
+        specialArgs = {inherit inputs outputs;};
+      };
     };
 
     homeConfigurations = {
       huawei = lib.homeManagerConfiguration {
         modules = [./hosts/huawei/home.nix];
+        pkgs = nixpkgs.legacyPackages.x86_64-linux;
+        extraSpecialArgs = {inherit inputs outputs;};
+      };
+
+      msi = lib.homeManagerConfiguration {
+        modules = [./hosts/msi/home.nix];
         pkgs = nixpkgs.legacyPackages.x86_64-linux;
         extraSpecialArgs = {inherit inputs outputs;};
       };
