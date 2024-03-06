@@ -1,0 +1,10 @@
+keys:
+  - &users:
+    - &olivergeneser 0C58DEF5F788777FCFF4DDBDEBAE9ABF7D8FC1B3
+
+creation_rules:
+  - path_regex: nixos/users/secrets.ya?ml$
+    key_groups:
+    - pgp:
+      - *olivergeneser
+
