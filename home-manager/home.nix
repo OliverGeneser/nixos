@@ -47,7 +47,6 @@
     };
   };
 
-  # TODO: Set your username
   home = {
     username = "olivergeneser";
     homeDirectory = "/home/olivergeneser";
@@ -65,5 +64,5 @@
   systemd.user.startServices = "sd-switch";
 
   # https://nixos.wiki/wiki/FAQ/When_do_I_update_stateVersion
-  home.stateVersion = "23.05";
+  home.stateVersion = "23.11";
 }
