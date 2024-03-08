@@ -1,33 +1,24 @@
 {
-  description = "Geneser Nix Config";
+  description = "Geneser nix config";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    nur.url = "github:nix-community/NUR";
-    home-manager = {
-      url = "github:nix-community/home-manager";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # Nixpkgs
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-23.05";
+    # You can access packages and modules from different nixpkgs revs
+    # at the same time. Here's an working example:
+    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
+    # Also see the 'unstable-packages' overlay at 'overlays/default.nix'.
 
-    disko.url = "github:nix-community/disko";
-    hardware.url = "github:nixos/nixos-hardware";
-    sops-nix.url = "github:mic92/sops-nix";
-    impermanence.url = "github:nix-community/impermanence";
-    lanzaboote.url = "github:nix-community/lanzaboote";
+    # Home manager
+    home-manager.url = "github:nix-community/home-manager/release-23.05";
+    home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
-    nixgl.url = "github:nix-community/nixGL";
-    nix-colors.url = "github:misterio77/nix-colors";
+    # TODO: Add any other flake you might need
+    # hardware.url = "github:nixos/nixos-hardware";
 
-    hypr-contrib.url = "github:hyprwm/contrib";
-    hyprland-nix.url = "github:spikespaz/hyprland-nix";
-    neovim-nightly-overlay.url = "github:nix-community/neovim-nightly-overlay";
-    nixvim.url = "github:pta2002/nixvim";
-    nixneovimplugins.url = "github:jooooscha/nixpkgs-vim-extra-plugins";
-    zjstatus.url = "github:dj95/zjstatus";
-
-    nwg-displays.url = "github:nwg-piotr/nwg-displays";
-    comma.url = "github:nix-community/comma";
-    nix-gaming.url = "github:fufexan/nix-gaming";
+    # Shameless plug: looking for a way to nixify your themes and make
+    # everything match nicely? Try nix-colors!
+    # nix-colors.url = "github:misterio77/nix-colors";
   };
 
   outputs = {
@@ -37,56 +28,53 @@
     ...
   } @ inputs: let
     inherit (self) outputs;
-    lib = nixpkgs.lib // home-manager.lib;
-    systems = ["x86_64-linux" "aarch64-linux"];
-    forEachSystem = f: lib.genAttrs systems (sys: f pkgsFor.${sys});
-    pkgsFor = nixpkgs.legacyPackages;
+    # Supported systems for your flake packages, shell, etc.
+    systems = [
+      "aarch64-linux"
+      "x86_64-linux"
+    ];
+    # This is a function that generates an attribute by calling a function you
+    # pass to it, with each system as an argument
+    forAllSystems = nixpkgs.lib.genAttrs systems;
   in {
-    inherit lib;
+    # Your custom packages
+    # Accessible through 'nix build', 'nix shell', etc
+    packages = forAllSystems (system: import ./pkgs nixpkgs.legacyPackages.${system});
+    # Formatter for your nix files, available through 'nix fmt'
+    # Other options beside 'alejandra' include 'nixpkgs-fmt'
+    formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
+
+    # Your custom packages and modifications, exported as overlays
+    overlays = import ./overlays {inherit inputs;};
+    # Reusable nixos modules you might want to export
+    # These are usually stuff you would upstream into nixpkgs
     nixosModules = import ./modules/nixos;
+    # Reusable home-manager modules you might want to export
+    # These are usually stuff you would upstream into home-manager
     homeManagerModules = import ./modules/home-manager;
-    overlays = import ./overlays {inherit inputs outputs;};
-    packages = forEachSystem (pkgs: import ./pkgs {inherit pkgs;});
-    devShells = forEachSystem (pkgs: import ./shell.nix {inherit pkgs inputs;});
 
+    # NixOS configuration entrypoint
+    # Available through 'nixos-rebuild --flake .#your-hostname'
     nixosConfigurations = {
-      iso = lib.nixosSystem {
+      msi = nixpkgs.lib.nixosSystem {
+        specialArgs = {inherit inputs outputs;};
         modules = [
-          "${nixpkgs}/nixos/modules/installer/cd-dvd/installation-cd-graphical-gnome.nix"
-          "${nixpkgs}/nixos/modules/installer/cd-dvd/channel.nix"
-          ./hosts/iso/configuration.nix
+          # > Our main nixos configuration file <
+          ./nixos/configuration.nix
         ];
-        specialArgs = {inherit inputs outputs;};
-      };
-
-      huawei = lib.nixosSystem {
-        modules = [./hosts/huawei/configuration.nix];
-        specialArgs = {inherit inputs outputs;};
-      };
-
-      msi = lib.nixosSystem {
-        modules = [./hosts/msi/configuration.nix];
-        specialArgs = {inherit inputs outputs;};
       };
     };
 
+    # Standalone home-manager configuration entrypoint
+    # Available through 'home-manager --flake .#your-username@your-hostname'
     homeConfigurations = {
-      huawei = lib.homeManagerConfiguration {
-        modules = [./hosts/huawei/home.nix];
-        pkgs = nixpkgs.legacyPackages.x86_64-linux;
+      "olivergeneser@msi" = home-manager.lib.homeManagerConfiguration {
+        pkgs = nixpkgs.legacyPackages.x86_64-linux; # Home-manager requires 'pkgs' instance
         extraSpecialArgs = {inherit inputs outputs;};
-      };
-
-      msi = lib.homeManagerConfiguration {
-        modules = [./hosts/msi/home.nix];
-        pkgs = nixpkgs.legacyPackages.x86_64-linux;
-        extraSpecialArgs = {inherit inputs outputs;};
-      };
-
-      desktop = lib.homeManagerConfiguration {
-        modules = [./hosts/desktop/home.nix];
-        pkgs = nixpkgs.legacyPackages.x86_64-linux;
-        extraSpecialArgs = {inherit inputs outputs;};
+        modules = [
+          # > Our main home-manager configuration file <
+          ./home-manager/home.nix
+        ];
       };
     };
   };
