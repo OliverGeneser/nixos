@@ -1,95 +1,97 @@
 {
-  description = "Geneser nix config";
+  description = "Haseeb's Nix/NixOS Config";
 
   inputs = {
-    # Nixpkgs
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    home-manager = {
+      url = "github:nix-community/home-manager";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
-    # Home manager
-    home-manager.url = "github:nix-community/home-manager";
-    home-manager.inputs.nixpkgs.follows = "nixpkgs";
+    snowfall-lib = {
+      url = "github:snowfallorg/lib";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
+    disko.url = "github:nix-community/disko";
     hardware.url = "github:nixos/nixos-hardware";
+    sops-nix.url = "github:mic92/sops-nix";
+
     impermanence.url = "github:nix-community/impermanence";
+    lanzaboote.url = "github:nix-community/lanzaboote";
 
-    sops-nix = {
-      url = "github:mic92/sops-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.nixpkgs-stable.follows = "nixpkgs";
+    nixgl.url = "github:nix-community/nixGL";
+    nix-colors.url = "github:misterio77/nix-colors";
+    nix-ld.url = "github:Mic92/nix-ld";
+    nix-index-database.url = "github:nix-community/nix-index-database";
+    comma.url = "github:nix-community/comma";
+
+    hypr-contrib.url = "github:hyprwm/contrib";
+    hypridle.url = "github:hyprwm/Hypridle";
+    hyprlock.url = "github:hyprwm/Hyprlock";
+    hyprpaper.url = "github:hyprwm/hyprpaper";
+
+    hyprland-git.url = "github:hyprwm/hyprland";
+    hyprland-xdph-git.url = "github:hyprwm/xdg-desktop-portal-hyprland";
+    hyprland-protocols-git.url = "github:hyprwm/xdg-desktop-portal-hyprland";
+    hyprland-nix.url = "github:spikespaz/hyprland-nix";
+    hyprland-nix.inputs = {
+      hyprland.follows = "hyprland-git";
+      hyprland-xdph.follows = "hyprland-xdph-git";
+      hyprland-protocols.follows = "hyprland-protocols-git";
     };
 
-    inputs.disko.url = "github:nix-community/disko";
-    inputs.disko.inputs.nixpkgs.follows = "nixpkgs";
+    nixvim.url = "github:pta2002/nixvim";
 
-    hyprland = {
-      url = "github:hyprwm/hyprland";
-      inputs.nixpkgs.follows = "nixpkgs";
+    firefox-gnome-theme = {
+      url = "github:rafaelmardojai/firefox-gnome-theme";
+      flake = false;
     };
-    hyprwm-contrib = {
-      url = "github:hyprwm/contrib";
-      inputs.nixpkgs.follows = "nixpkgs";
+
+    copilotchat-nvim = {
+      url = "github:copilotc-nvim/copilotchat.nvim";
+      flake = false;
     };
-    hyprland-plugins = {
-      url = "github:hyprwm/hyprland-plugins";
-      inputs.hyprland.follows = "hyprland";
+
+    neorg-templates = {
+      url = "github:pysan3/neorg-templates";
+      flake = false;
     };
   };
 
-  outputs =
-    { self
-    , nixpkgs
-    , home-manager
-    , disko
-    , ...
-    } @ inputs:
-    let
-      inherit (self) outputs;
-      lib = nixpkgs.lib // home-manager.lib;
-      systems = [ "x86_64-linux" "aarch64-linux" ];
-      forEachSystem = f: lib.genAttrs systems (system: f pkgsFor.${system});
-      pkgsFor = lib.genAttrs systems (system: import nixpkgs {
-        inherit system;
-        config.allowUnfree = true;
-      });
-    in
-    {
-      inherit lib;
-      nixosModules = import ./modules/nixos;
-      homeManagerModules = import ./modules/home-manager;
-      templates = import ./templates;
-
-      overlays = import ./overlays { inherit inputs outputs; };
-
-      packages = forEachSystem (pkgs: import ./pkgs { inherit pkgs; });
-      devShells = forEachSystem (pkgs: import ./shell.nix { inherit pkgs; });
-      formatter = forEachSystem (pkgs: pkgs.nixpkgs-fmt);
-
-      # NixOS configuration entrypoint
-      # Available through 'nixos-rebuild --flake .#your-hostname'
-      nixosConfigurations = {
-        # FIXME replace with your hostname
-        msi = nixpkgs.lib.nixosSystem {
-          specialArgs = { inherit inputs outputs; };
-          modules = [
-            # > Our main nixos configuration file <
-            ./hosts/msi/configuration.nix    
-            disko.nixosModules.disko
-          ];
+  outputs = inputs:
+    inputs.snowfall-lib.mkFlake {
+      inherit inputs;
+      src = ./.;
+      snowfall = {
+        metadata = "nixicle";
+        namespace = "nixicle";
+        meta = {
+          name = "nixicle";
+          title = "Haseeb's Nix Flake";
         };
       };
 
-      # Standalone home-manager configuration entrypoint
-      # Available through 'home-manager --flake .#your-username@your-hostname'
-      homeConfigurations = {
-        # FIXME replace with your username@hostname
-        "msi@olivergeneser" = home-manager.lib.homeManagerConfiguration {
-          pkgs = nixpkgs.legacyPackages.x86_64-linux; # Home-manager requires 'pkgs' instance
-          extraSpecialArgs = { inherit inputs outputs; };
-          modules = [
-            # > Our main home-manager configuration file <
-            ./home/olivergeneser/msi.nix
-          ];
-        };
+      channels-config = {
+        allowUnfree = true;
       };
+
+      systems.modules.nixos = with inputs; [
+        home-manager.nixosModules.home-manager
+        disko.nixosModules.disko
+        lanzaboote.nixosModules.lanzaboote
+        impermanence.nixosModules.impermanence
+        sops-nix.nixosModules.sops
+        nix-ld.nixosModules.nix-ld
+      ];
+
+      # TODO: move to relevant files
+      # homes.modules = with inputs; [
+      #   impermanence.nixosModules.home-manager.impermanence
+      # ];
+
+      overlays = with inputs; [
+        nixgl.overlay
+      ];
     };
 }
